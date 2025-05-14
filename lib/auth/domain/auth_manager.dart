@@ -9,7 +9,7 @@ class AuthManager {
       String login, String password, String companyId, WidgetRef ref) async {
     await UserPreferences.logout();
 
-    final url = Uri.parse('https://working-day.online:8080/v1/authorize');
+    final url = Uri.parse('https://working-day.su:8080/v1/authorize');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},

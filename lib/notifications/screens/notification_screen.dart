@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:test/notifications/data/notification.dart';
+import 'package:test/notifications/data/notification_employee.dart';
 import 'package:test/notifications/screens/pdf_view_screen.dart';
 import 'package:test/user/domain/user_preferences.dart';
 import 'package:intl/intl.dart';
@@ -116,7 +117,7 @@ class NoticePageState extends State<NoticePage> {
   }
 
   Future<NotificationsResponse> fetchNotifications(String token) async {
-    const url = 'https://working-day.online:8080/v1/notifications';
+    const url = 'https://working-day.su:8080/v1/notifications';
     final response = await http.post(
       Uri.parse(url),
       headers: {
@@ -341,7 +342,7 @@ class NotificationCard extends StatefulWidget {
 class _NotificationCardState extends State<NotificationCard> {
   Future<String?> fetchVacationDocumentLink(
       String token, String actionId, String requestType) async {
-    const url = 'https://working-day.online:8080/v1/documents/vacation';
+    const url = 'https://working-day.su:8080/v1/documents/vacation';
     final uri = Uri.parse(url).replace(queryParameters: {
       'action_id': actionId,
       'request_type': requestType,
@@ -362,7 +363,7 @@ class _NotificationCardState extends State<NotificationCard> {
     String? token = await UserPreferences.getToken();
     if (token == null) return;
 
-    const url = 'https://working-day.online:8080/v1/notifications';
+    const url = 'https://working-day.su:8080/v1/notifications';
     final response = await http.post(
       Uri.parse(url),
       headers: {
@@ -420,7 +421,7 @@ class _NotificationCardState extends State<NotificationCard> {
                       const SizedBox(width: 8.0),
                       Expanded(
                         child: Text(
-                          '${widget.notification.sender.name} ${widget.notification.sender.surname}',
+                          _buildSenderName(widget.notification.sender),
                           style: const TextStyle(
                             fontFamily: 'CeraPro',
                             fontWeight: FontWeight.bold,
@@ -493,6 +494,14 @@ class _NotificationCardState extends State<NotificationCard> {
         ],
       ),
     );
+  }
+
+  String _buildSenderName(Employee sender) {
+    if ((sender.name == null || sender.name!.isEmpty) &&
+        (sender.surname == null || sender.surname!.isEmpty)) {
+      return 'Система';
+    }
+    return '${sender.name ?? ''} ${sender.surname ?? ''}'.trim();
   }
 
   Widget _buildActionButtons(BuildContext context, String actionId) {
@@ -617,7 +626,7 @@ class _NotificationCardState extends State<NotificationCard> {
       throw Exception('Токен не найден');
     }
 
-    const url = 'https://working-day.online:8080/v1/abscence/verdict';
+    const url = 'https://working-day.su:8080/v1/abscence/verdict';
     final response = await http.post(
       Uri.parse(url),
       headers: {

@@ -17,12 +17,23 @@ class SearchPageState extends State<SearchPage> {
   List<User> _users = [];
   bool _isSearchPerformed = false;
 
+  @override
+  void initState() {
+    super.initState();
+    _loadAllUsers(); // загружаем всех сотрудников при входе
+  }
+
+  Future<void> _loadAllUsers() async {
+    final allUsers = await _searchService.fetchAllUsers();
+    setState(() {
+      _users = allUsers;
+      _isSearchPerformed = true;
+    });
+  }
+
   Future<void> _search() async {
     if (_controller.text.isEmpty) {
-      setState(() {
-        _users = [];
-        _isSearchPerformed = false;
-      });
+      _loadAllUsers();
       return;
     }
 
@@ -41,10 +52,7 @@ class SearchPageState extends State<SearchPage> {
         _isSearchPerformed = true;
       });
     } else {
-      setState(() {
-        _users = [];
-        _isSearchPerformed = false;
-      });
+      _loadAllUsers();
     }
   }
 
@@ -86,15 +94,28 @@ class SearchPageState extends State<SearchPage> {
           fontFamily: 'CeraPro',
           color: Color.fromARGB(255, 22, 79, 148),
         ),
-        border: const OutlineInputBorder(),
-        enabledBorder: const OutlineInputBorder(
-          borderSide: BorderSide(
+        hintText: 'Введите имя',
+        hintStyle: const TextStyle(
+          fontFamily: 'CeraPro',
+          color: Colors.grey,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(
             color: Color.fromARGB(255, 22, 79, 148),
             width: 2.0,
           ),
         ),
-        focusedBorder: const OutlineInputBorder(
-          borderSide: BorderSide(
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(
+            color: Color.fromARGB(255, 22, 79, 148),
+            width: 2.0,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(
             color: Color.fromARGB(255, 22, 79, 148),
             width: 2.0,
           ),
@@ -123,7 +144,9 @@ class SearchPageState extends State<SearchPage> {
       child: const Text(
         'Поиск',
         style: TextStyle(
-            fontFamily: 'CeraPro', color: Color.fromARGB(255, 245, 245, 245)),
+          fontFamily: 'CeraPro',
+          color: Color.fromARGB(255, 245, 245, 245),
+        ),
       ),
     );
   }
@@ -131,67 +154,92 @@ class SearchPageState extends State<SearchPage> {
   Widget _buildSearchResults() {
     return Expanded(
       child: !_isSearchPerformed
-          ? Container()
-          : _users.isEmpty
-              ? const Center(
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8.0),
                   child: Text(
-                    'Ничего не найдено',
+                    'Сотрудники',
                     style: TextStyle(
-                      fontFamily: 'CeraPro',
                       fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'CeraPro',
                       color: Color.fromARGB(255, 22, 79, 148),
                     ),
                   ),
-                )
-              : ListView.separated(
-                  itemCount: _users.length,
-                  separatorBuilder: (context, index) =>
-                      Divider(color: Colors.blueGrey.shade100),
-                  itemBuilder: (context, index) {
-                    final user = _users[index];
-                    return Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: const Color.fromARGB(255, 22, 79, 148),
-                          width: 2.0,
-                        ),
-                        borderRadius: BorderRadius.circular(10.0),
-                      ),
-                      child: Card(
-                        margin: EdgeInsets.zero,
-                        color: const Color.fromARGB(255, 245, 245, 245),
-                        elevation: 0,
-                        child: ListTile(
-                          title: Text(
-                            '${user.surname} ${user.name} ${user.patronymic ?? ""}',
-                            style: const TextStyle(
+                ),
+                Expanded(
+                  child: _users.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'Ничего не найдено',
+                            style: TextStyle(
                               fontFamily: 'CeraPro',
+                              fontSize: 18,
                               color: Color.fromARGB(255, 22, 79, 148),
                             ),
                           ),
-                          leading: user.photo_link != null
-                              ? CircleAvatar(
-                                  backgroundImage:
-                                      NetworkImage(user.photo_link!),
-                                )
-                              : const CircleAvatar(
-                                  child: Icon(Icons.person),
+                        )
+                      : ListView.separated(
+                          itemCount: _users.length,
+                          separatorBuilder: (context, index) =>
+                              Divider(color: Colors.blueGrey.shade100),
+                          itemBuilder: (context, index) {
+                            final user = _users[index];
+                            return Container(
+                              margin: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 5,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: ListTile(
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 8),
+                                leading: user.photo_link != null
+                                    ? CircleAvatar(
+                                        radius: 30,
+                                        backgroundImage:
+                                            NetworkImage(user.photo_link!),
+                                      )
+                                    : const CircleAvatar(
+                                        radius: 30,
+                                        child: Icon(Icons.person),
+                                      ),
+                                title: Text(
+                                  '${user.surname} ${user.name} ${user.patronymic ?? ""}',
+                                  style: const TextStyle(
+                                    fontFamily: 'CeraPro',
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color.fromARGB(255, 22, 79, 148),
+                                  ),
                                 ),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => SearchProfileScreen(
-                                  userId: user.id ?? 'defaultUserId',
-                                ),
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => SearchProfileScreen(
+                                        userId: user.id ?? '',
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                             );
                           },
                         ),
-                      ),
-                    );
-                  },
                 ),
+              ],
+            ),
     );
   }
 }

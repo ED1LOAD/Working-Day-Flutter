@@ -1,11 +1,17 @@
+// в начале файла:
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:intl/intl.dart';
 import 'package:test/auth/domain/auth_notifier.dart';
 import 'package:test/auth/screens/auth_screen.dart';
 import 'package:test/profile/domain/profile_service.dart';
 import 'package:test/profile/screens/edit_profile_page.dart';
+import 'package:test/search/screens/search_calendar.dart';
+import 'package:test/search/screens/search_profile_screen.dart';
 import 'package:test/user/data/user.dart';
+import 'package:test/user/data/user_inventory.dart';
 import 'package:test/user/domain/user_preferences.dart';
 
 class ProfileContent extends StatefulWidget {
@@ -19,10 +25,22 @@ class ProfileContentState extends State<ProfileContent> {
   final ProfileService _profileService = ProfileService();
   Future<User?>? _fetchUserFuture;
 
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _inventoryKey = GlobalKey();
+  String? _userRole;
+
   @override
   void initState() {
     super.initState();
     _fetchUserFuture = _profileService.fetchUserProfile();
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    final role = await UserPreferences.getRole();
+    setState(() {
+      _userRole = role;
+    });
   }
 
   void updateUserProfile() {
@@ -46,59 +64,7 @@ class ProfileContentState extends State<ProfileContent> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        title: const Text('Профиль',
-            style: TextStyle(
-                fontFamily: 'CeraPro',
-                fontSize: 26,
-                fontWeight: FontWeight.bold)),
-        actions: [
-          Consumer(
-            builder: (context, ref, _) {
-              return PopupMenuButton<String>(
-                color: Colors.white,
-                onSelected: (value) async {
-                  switch (value) {
-                    case 'edit_profile':
-                      Navigator.of(context).push(MaterialPageRoute(
-                        builder: (context) =>
-                            EditProfilePage(onUpdate: updateUserProfile),
-                      ));
-                      break;
-                    case 'logout':
-                      await UserPreferences.logout();
-                      ref.read(authStateProvider.notifier).state = false;
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(
-                              builder: (context) => const AuthScreen()),
-                        );
-                      });
-                      break;
-                  }
-                },
-                itemBuilder: (BuildContext context) {
-                  return [
-                    const PopupMenuItem<String>(
-                      value: 'edit_profile',
-                      child: Text('Редактировать профиль',
-                          style:
-                              TextStyle(fontFamily: 'CeraPro', fontSize: 16)),
-                    ),
-                    const PopupMenuItem<String>(
-                      value: 'logout',
-                      child: Text('Выйти',
-                          style:
-                              TextStyle(fontFamily: 'CeraPro', fontSize: 16)),
-                    ),
-                  ];
-                },
-              );
-            },
-          ),
-        ],
-      ),
+      backgroundColor: const Color(0xFFF8F9FB),
       body: FutureBuilder<User?>(
         future: _fetchUserFuture,
         builder: (context, snapshot) {
@@ -108,7 +74,7 @@ class ProfileContentState extends State<ProfileContent> {
             return const Center(
                 child: Text("Ошибка загрузки данных пользователя"));
           } else if (snapshot.hasData) {
-            return buildUserProfile(snapshot.data!);
+            return _buildProfileLayout(snapshot.data!);
           } else {
             return const Center(child: Text("Пользователь не найден"));
           }
@@ -117,145 +83,327 @@ class ProfileContentState extends State<ProfileContent> {
     );
   }
 
-  Widget buildUserProfile(User user) {
-    double screenWidth = MediaQuery.of(context).size.width;
-    double padding = 20.0 * 2;
-    double cardWidth = screenWidth - padding;
+  Widget _buildProfileLayout(User user) {
     return SingleChildScrollView(
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(20),
+          Container(
+            padding: const EdgeInsets.fromLTRB(30, 20, 20, 30),
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF0E3C6E), Color(0xFF265AA6)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
+            ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                Stack(
+                  children: [
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          'Профиль',
+                          style: const TextStyle(
+                            fontFamily: 'CeraPro',
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: Consumer(
+                        builder: (context, ref, _) {
+                          return PopupMenuButton<String>(
+                            color: Colors.white,
+                            icon: const Icon(Icons.more_vert,
+                                color: Colors.white),
+                            onSelected: (value) async {
+                              if (value == 'edit_profile') {
+                                Navigator.of(context).push(MaterialPageRoute(
+                                  builder: (context) => EditProfilePage(
+                                    onUpdate: updateUserProfile,
+                                  ),
+                                ));
+                              } else if (value == 'logout') {
+                                await UserPreferences.logout();
+                                ref.read(authStateProvider.notifier).state =
+                                    false;
+                                Navigator.of(context).pushReplacement(
+                                  MaterialPageRoute(
+                                      builder: (context) => const AuthScreen()),
+                                );
+                              }
+                            },
+                            itemBuilder: (_) => const [
+                              PopupMenuItem(
+                                value: 'edit_profile',
+                                child: Text('Редактировать профиль'),
+                              ),
+                              PopupMenuItem(
+                                value: 'logout',
+                                child: Text('Выйти'),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
                 Stack(
                   clipBehavior: Clip.none,
                   children: [
                     CircleAvatar(
-                      radius: 65,
+                      radius: 70,
                       backgroundImage: user.photo_link != null
                           ? NetworkImage(user.photo_link!)
                           : null,
                       child: user.photo_link == null
-                          ? const Icon(Icons.person, size: 130)
+                          ? const Icon(Icons.person, size: 110)
                           : null,
                     ),
                     Positioned(
-                      bottom: -10,
-                      right: -10,
+                      bottom: -5,
+                      right: -5,
                       child: FloatingActionButton(
                         heroTag: null,
                         mini: true,
                         onPressed: pickAndUploadImage,
-                        backgroundColor: const Color.fromARGB(255, 22, 79, 148),
-                        child: const Icon(
-                          Icons.camera_alt,
-                          color: Color.fromARGB(255, 245, 245, 245),
-                        ),
+                        backgroundColor: Colors.white,
+                        child: const Icon(Icons.camera_alt,
+                            color: Color(0xFF0E3C6E)),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 15),
+                const SizedBox(height: 16),
                 Text(
-                  '${user.surname} ${user.name} ${user.patronymic}',
-                  style: const TextStyle(fontFamily: 'CeraPro', fontSize: 18),
+                  '${user.surname} ${user.name}',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    color: Colors.white,
+                    fontFamily: 'CeraPro',
+                  ),
                 ),
-                const SizedBox(height: 15),
+                const SizedBox(height: 6),
                 Text(
-                  '${user.email}',
-                  style: const TextStyle(fontFamily: 'CeraPro', fontSize: 16),
+                  user.email ?? '',
+                  style: const TextStyle(color: Colors.white70),
                 ),
                 const SizedBox(height: 25),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildIconInfo(
-                      context,
-                      FontAwesomeIcons.telegram,
-                      'Telegram: ${user.telegram_id}',
-                    ),
-                    _buildIconInfo(
-                      context,
-                      FontAwesomeIcons.phone,
-                      'Phones: ${user.phones?.join(", ") ?? "Нет телефонов"}',
-                    ),
-                    _buildIconInfo(
-                      context,
-                      FontAwesomeIcons.vk,
-                      'VK: ${user.vk_id}',
-                    ),
-                  ],
+                Padding(
+                  padding: const EdgeInsets.only(top: 25),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        UserCalendarPage(userId: user.id ?? ''),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.calendar_today,
+                                  size: 16, color: Colors.white),
+                              label: const Text(
+                                'Календарь',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontFamily: 'CeraPro',
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white.withOpacity(0.1),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20)),
+                                side: const BorderSide(color: Colors.white70),
+                                elevation: 0,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      InkWell(
+                        onTap: () {
+                          final inventoryContext = _inventoryKey.currentContext;
+                          if (inventoryContext != null) {
+                            Scrollable.ensureVisible(
+                              inventoryContext,
+                              duration: const Duration(milliseconds: 500),
+                              curve: Curves.easeInOut,
+                            );
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.white70),
+                          ),
+                          child: const Text(
+                            'Инвентарь',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontFamily: 'CeraPro',
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 25),
-          SizedBox(
-            width: cardWidth,
-            child: Card(
-              color: const Color.fromARGB(255, 245, 245, 245),
-              elevation: 0,
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'О себе',
-                      style: TextStyle(
-                        fontFamily: 'CeraPro',
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 35),
-                    Text(
-                      'Команда: ${user.team}',
-                      style: const TextStyle(
-                          fontFamily: 'CeraPro',
-                          fontSize: 16,
-                          decoration: TextDecoration.underline,
-                          decorationColor: Color.fromARGB(255, 188, 186, 187),
-                          decorationThickness: 1),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'День рождения: ${user.birthday}',
-                      style: const TextStyle(
-                          fontFamily: 'CeraPro',
-                          fontSize: 16,
-                          decoration: TextDecoration.underline,
-                          decorationColor: Color.fromARGB(255, 188, 186, 187),
-                          decorationThickness: 2),
-                    ),
-                  ],
-                ),
+          const SizedBox(height: 30),
+          _buildContactRow(
+              context, Icons.email, "Email", user.email ?? "Не указано"),
+          _buildContactRow(context, Icons.work_outline, "Должность",
+              user.jobPosition ?? "Нет должности"),
+          if (user.headInfo != null)
+            _buildContactRow(
+              context,
+              Icons.supervisor_account,
+              "Руководитель",
+              '${user.headInfo!.surname} ${user.headInfo!.name}',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        SearchProfileScreen(userId: user.headInfo!.id),
+                  ),
+                );
+              },
+            ),
+          _buildContactRow(
+            context,
+            FontAwesomeIcons.calendarXmark,
+            "День рождения",
+            user.birthday != null
+                ? DateFormat('d MMMM yyyy', 'ru_RU')
+                    .format(DateTime.tryParse(user.birthday!) ?? DateTime(2000))
+                : "Не указано",
+          ),
+          _buildContactRow(context, Icons.phone, "Mobile",
+              user.phones?.join(", ") ?? "Нет телефонов"),
+          _buildContactRow(context, FontAwesomeIcons.telegram, "Telegram",
+              user.telegram_id ?? "Не указано"),
+          _buildContactRow(
+              context, FontAwesomeIcons.vk, "VK", user.vk_id ?? "Не указано"),
+          const SizedBox(height: 20),
+          Container(
+            key: _inventoryKey,
+            child: _buildSectionTitle('Мой инвентарь', user),
+          ),
+          if (user.inventory != null && user.inventory!.isNotEmpty)
+            ...user.inventory!.map((item) => _buildInventoryCard(item)).toList()
+          else
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 10),
+              child: Text(
+                "Нет инвентаря",
+                style: TextStyle(
+                    fontFamily: 'CeraPro', fontSize: 16, color: Colors.grey),
               ),
             ),
-          )
+          const SizedBox(height: 20),
         ],
       ),
     );
   }
 
-  GestureDetector _buildIconInfo(
-      BuildContext context, IconData icon, String info) {
-    return GestureDetector(
-      onTap: () => _showInfo(context, info),
+  Widget _buildContactRow(
+      BuildContext context, IconData icon, String label, String value,
+      {VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap ?? () => _showInfo(context, "$label: $value"),
       child: Container(
-        decoration: BoxDecoration(
-          color: const Color.fromARGB(255, 22, 79, 148),
-          borderRadius: BorderRadius.circular(10),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: Color(0xFFE0E0E0))),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: FaIcon(
-            icon,
-            size: 35,
-            color: const Color.fromARGB(255, 255, 255, 255),
-          ),
+        child: Row(
+          children: [
+            Icon(icon, color: const Color(0xFF0E3C6E)),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label,
+                      style: const TextStyle(
+                          fontFamily: 'CeraPro',
+                          fontSize: 14,
+                          color: Colors.grey)),
+                  const SizedBox(height: 4),
+                  Text(value,
+                      style: const TextStyle(
+                          fontFamily: 'CeraPro',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF1C1C1E))),
+                ],
+              ),
+            )
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title, User user) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 30, 20, 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(title,
+              style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'CeraPro')),
+          if (_userRole == 'admin')
+            ElevatedButton.icon(
+              onPressed: () => _showAddInventoryDialog(user),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Добавить'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0E3C6E),
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                textStyle: const TextStyle(fontSize: 14, fontFamily: 'CeraPro'),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -263,40 +411,316 @@ class ProfileContentState extends State<ProfileContent> {
   void _showInfo(BuildContext context, String info) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
+      builder: (BuildContext dialogContext) {
         return Dialog(
-          backgroundColor: Colors.white,
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20),
           child: Container(
-            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const FaIcon(FontAwesomeIcons.circleInfo,
+                      color: Color(0xFF0E3C6E), size: 36),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Информация',
+                    style: TextStyle(
+                      fontFamily: 'CeraPro',
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0E3C6E),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  GestureDetector(
+                    onTap: () async {
+                      await Clipboard.setData(ClipboardData(text: info));
+                      Navigator.of(dialogContext).pop();
+                      _showCopiedDialog(context);
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F4FA),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFD0DCE8)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.copy, color: Color(0xFF0E3C6E)),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              info,
+                              style: const TextStyle(
+                                fontFamily: 'CeraPro',
+                                fontSize: 16,
+                                color: Color(0xFF1C1C1E),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        backgroundColor: const Color(0xFF0E3C6E),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () {
+                        Navigator.of(dialogContext).pop();
+                      },
+                      child: const Text(
+                        'Закрыть',
+                        style: TextStyle(
+                          fontFamily: 'CeraPro',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showCopiedDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 40),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.12),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Icon(Icons.check_circle_outline,
+                    size: 42, color: Color(0xFF0E3C6E)),
+                SizedBox(height: 16),
+                Text(
+                  'Скопировано в буфер обмена',
+                  style: TextStyle(
+                    fontFamily: 'CeraPro',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF1C1C1E),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    Future.delayed(const Duration(milliseconds: 1000), () {
+      if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+    });
+  }
+
+  Widget _buildInventoryCard(InventoryItem item) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFF3F6),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.inventory, size: 28, color: Color(0xFF265AA6)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(item.name ?? "Без названия",
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'CeraPro')),
+                const SizedBox(height: 4),
+                Text(item.description ?? "Без описания",
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontFamily: 'CeraPro',
+                        color: Colors.black54)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddInventoryDialog(User user) {
+    final nameController = TextEditingController();
+    final descriptionController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text(
-                  'Информация',
+                  'Добавить инвентарь',
                   style: TextStyle(
                     fontFamily: 'CeraPro',
-                    fontSize: 24,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
+                    color: Color(0xFF0E3C6E),
                   ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  info,
-                  style: const TextStyle(fontFamily: 'CeraPro', fontSize: 16),
                 ),
                 const SizedBox(height: 20),
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text(
-                    'OK',
-                    style: TextStyle(
-                      fontFamily: 'CeraPro',
-                      fontSize: 18,
-                      color: Color.fromARGB(255, 22, 79, 148),
+                TextField(
+                  controller: nameController,
+                  style: const TextStyle(color: Color(0xFF0E3C6E)),
+                  decoration: InputDecoration(
+                    labelText: 'Название',
+                    labelStyle: const TextStyle(
+                        fontFamily: 'CeraPro', color: Color(0xFF0E3C6E)),
+                    filled: true,
+                    fillColor: const Color(0xFFF0F4FA),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
                     ),
                   ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: descriptionController,
+                  maxLines: 3,
+                  style: const TextStyle(color: Color(0xFF0E3C6E)),
+                  decoration: InputDecoration(
+                    labelText: 'Описание',
+                    labelStyle: const TextStyle(
+                        fontFamily: 'CeraPro', color: Color(0xFF0E3C6E)),
+                    filled: true,
+                    fillColor: const Color(0xFFF0F4FA),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      child: const Text('Отмена',
+                          style: TextStyle(
+                              fontFamily: 'CeraPro',
+                              color: Colors.grey,
+                              fontWeight: FontWeight.w500)),
+                    ),
+                    const SizedBox(width: 10),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0E3C6E),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () async {
+                        final name = nameController.text.trim();
+                        final description = descriptionController.text.trim();
+                        if (name.isNotEmpty) {
+                          final success =
+                              await _profileService.addInventoryItem(
+                            name,
+                            description,
+                            user.id ?? '',
+                          );
+                          if (success) {
+                            Navigator.of(dialogContext).pop();
+                            setState(() {
+                              _fetchUserFuture =
+                                  _profileService.fetchUserProfile();
+                            });
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content:
+                                      Text('Ошибка при добавлении инвентаря')),
+                            );
+                          }
+                        }
+                      },
+                      child: const Text(
+                        'Сохранить',
+                        style: TextStyle(
+                            fontFamily: 'CeraPro',
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

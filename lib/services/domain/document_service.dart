@@ -12,7 +12,7 @@ class DocumentsService {
       throw Exception('Токен не существует');
     }
 
-    final url = Uri.parse('https://working-day.online:8080/v1/documents/list');
+    final url = Uri.parse('https://working-day.su:8080/v1/documents/list');
     try {
       final response = await http.get(
         url,
@@ -46,7 +46,7 @@ class DocumentsService {
     }
 
     final url = Uri.parse(
-        'https://working-day.online:8080/v1/documents/download?id=$documentId');
+        'https://working-day.su:8080/v1/documents/download?id=$documentId');
     final response = await http.get(
       url,
       headers: {
@@ -70,7 +70,7 @@ class DocumentsService {
     }
 
     final url = Uri.parse(
-        'https://working-day.online:8080/v1/documents/sign?document_id=$documentId');
+        'https://working-day.su:8080/v1/documents/sign?document_id=$documentId');
     try {
       final response = await http.post(
         url,
@@ -87,6 +87,69 @@ class DocumentsService {
       }
     } catch (e) {
       print("Исключение при попытке подписать документ: $e");
+    }
+  }
+
+  Future<void> addDocumentSignChain(
+      String documentId, List<Map<String, dynamic>> chainMetadata) async {
+    String? token = await UserPreferences.getToken();
+    if (token == null) {
+      throw Exception('Токен не существует');
+    }
+
+    final url = Uri.parse(
+        'https://working-day.su:8080/v1/documents/chain/add?document_id=$documentId');
+    final response = await http.post(url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'chain_metadata': chainMetadata,
+        }));
+
+    if (response.statusCode == 200) {
+      print('Цепочка подписей успешно добавлена');
+    } else {
+      print('Ошибка добавления цепочки подписей: ${response.statusCode}');
+      print('Тело ответа: ${response.body}');
+      throw Exception(
+          'Ошибка добавления цепочки подписей: ${response.statusCode}');
+    }
+  }
+
+  Future<void> updateDocumentSignChain(
+      String documentId, int approvalStatus) async {
+    String? token = await UserPreferences.getToken();
+    if (token == null) {
+      throw Exception('Токен не существует');
+    }
+
+    final url = Uri.parse(
+        'https://working-day.su:8080/v1/documents/chain/update?document_id=$documentId');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'approval_status': approvalStatus,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        print('Цепочка подписей успешно обновлена');
+      } else {
+        print('Ошибка при обновлении цепочки подписей: ${response.statusCode}');
+        print('Ответ: ${response.body}');
+        throw Exception('Failed to update sign chain: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Ошибка при обновлении цепочки подписей: $e');
+      throw Exception('Failed to update sign chain: $e');
     }
   }
 }

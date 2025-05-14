@@ -18,18 +18,45 @@ class AttendanceScreenState extends State<AttendanceScreen> {
 
   final Map<String, TextEditingController> _hoursWorkedControllers = {};
   final Map<String, bool> _absenceStatus = {};
+  final Map<String, TextEditingController> _startTimeControllers = {};
+  final Map<String, TextEditingController> _endTimeControllers = {};
+  final Map<String, bool> _isTimeRangeMode = {};
+  final Map<String, bool> _isSaveButtonEnabled = {};
 
   @override
   void dispose() {
     _hoursWorkedControllers.forEach((_, controller) => controller.dispose());
+    _startTimeControllers.forEach((_, controller) => controller.dispose());
+    _endTimeControllers.forEach((_, controller) => controller.dispose());
     super.dispose();
   }
 
-  Future<void> _saveAttendance(String employeeId, int hoursWorked) async {
+  Future<void> _saveAttendance(String employeeId) async {
+    final startTimeText = _startTimeControllers[employeeId]?.text ?? '';
+    final endTimeText = _endTimeControllers[employeeId]?.text ?? '';
+    int hoursWorked = 0;
+
+    if (_isTimeRangeMode[employeeId] == true &&
+        startTimeText.isNotEmpty &&
+        endTimeText.isNotEmpty) {
+      try {
+        final start = DateFormat('HH:mm').parse(startTimeText);
+        final end = DateFormat('HH:mm').parse(endTimeText);
+        hoursWorked = end.difference(start).inHours;
+      } catch (e) {
+        _showErrorDialog('Ошибка в формате времени');
+        return;
+      }
+    } else {
+      final hoursWorkedText = _hoursWorkedControllers[employeeId]?.text ?? '';
+      hoursWorked = int.tryParse(hoursWorkedText) ?? 0;
+    }
+
     if (_absenceStatus[employeeId] == true) {
       _showErrorDialog('Сотрудник отсутствовал, сохранение не требуется.');
       return;
     }
+
     try {
       DateTime startDate = DateTime(
           _selectedDate!.year, _selectedDate!.month, _selectedDate!.day, 9);
@@ -47,6 +74,9 @@ class AttendanceScreenState extends State<AttendanceScreen> {
           behavior: SnackBarBehavior.fixed,
         ),
       );
+      setState(() {
+        _isSaveButtonEnabled[employeeId] = false;
+      });
     } catch (e) {
       _showErrorDialog('Ошибка добавления посещения: $e');
     }
@@ -55,6 +85,14 @@ class AttendanceScreenState extends State<AttendanceScreen> {
   void _toggleAbsence(String employeeId) {
     setState(() {
       _absenceStatus[employeeId] = !(_absenceStatus[employeeId] ?? false);
+      _isSaveButtonEnabled[employeeId] =
+          !_absenceStatus[employeeId]!; // Блокировка кнопки при отсутствии
+    });
+  }
+
+  void _toggleTimeMode(String employeeId) {
+    setState(() {
+      _isTimeRangeMode[employeeId] = !_isTimeRangeMode[employeeId]!;
     });
   }
 
@@ -94,8 +132,12 @@ class AttendanceScreenState extends State<AttendanceScreen> {
           }
           _hoursWorkedControllers[attendance.employeeId] =
               TextEditingController(text: hoursWorked.toString());
-
+          _startTimeControllers[attendance.employeeId] =
+              TextEditingController();
+          _endTimeControllers[attendance.employeeId] = TextEditingController();
+          _isTimeRangeMode[attendance.employeeId] = false;
           _absenceStatus[attendance.employeeId] = false;
+          _isSaveButtonEnabled[attendance.employeeId] = true;
         }
       });
     } catch (e) {
@@ -112,15 +154,18 @@ class AttendanceScreenState extends State<AttendanceScreen> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: const Text('Табель',
-            style: TextStyle(
-              fontFamily: 'CeraPro',
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            )),
+        title: const Text(
+          'Табель',
+          style: TextStyle(
+            fontFamily: 'CeraPro',
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: const Color.fromARGB(255, 22, 79, 148),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(8.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
             Row(
@@ -132,13 +177,17 @@ class AttendanceScreenState extends State<AttendanceScreen> {
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color.fromARGB(255, 22, 79, 148),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30.0),
+                        ),
                       ),
                       onPressed: () => _selectDate(context),
                       child: Text(
                         'Дата: ${_selectedDate?.day.toString().padLeft(2, '0')}-${_selectedDate?.month.toString().padLeft(2, '0')}-${_selectedDate?.year}',
                         style: const TextStyle(
-                            fontFamily: 'CeraPro',
-                            color: Color.fromARGB(255, 245, 245, 245)),
+                          fontFamily: 'CeraPro',
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
@@ -146,15 +195,22 @@ class AttendanceScreenState extends State<AttendanceScreen> {
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color.fromARGB(255, 22, 79, 148),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30.0),
+                    ),
                   ),
                   onPressed: _loadAttendances,
-                  child: const Text('Загрузить табель',
-                      style: TextStyle(
-                          fontFamily: 'CeraPro',
-                          color: Color.fromARGB(255, 245, 245, 245))),
+                  child: const Text(
+                    'Загрузить табель',
+                    style: TextStyle(
+                      fontFamily: 'CeraPro',
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
               ],
             ),
+            const SizedBox(height: 16),
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
@@ -163,9 +219,6 @@ class AttendanceScreenState extends State<AttendanceScreen> {
                       itemBuilder: (context, index) {
                         var attendance = _attendances[index];
                         var employeeId = attendance.employeeId;
-
-                        _hoursWorkedControllers[attendance.employeeId] =
-                            TextEditingController(text: '');
 
                         return Card(
                           margin: const EdgeInsets.symmetric(
@@ -179,6 +232,7 @@ class AttendanceScreenState extends State<AttendanceScreen> {
                               width: 1.0,
                             ),
                           ),
+                          elevation: 8,
                           child: Padding(
                             padding: const EdgeInsets.all(16.0),
                             child: Column(
@@ -189,6 +243,7 @@ class AttendanceScreenState extends State<AttendanceScreen> {
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16.0,
+                                    color: Color.fromARGB(255, 22, 79, 148),
                                   ),
                                 ),
                                 const SizedBox(height: 8.0),
@@ -201,57 +256,106 @@ class AttendanceScreenState extends State<AttendanceScreen> {
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 14.0,
+                                          color: Colors.black54,
                                         ),
                                       ),
                                     ),
                                     Expanded(
                                       flex: 2,
-                                      child: TextField(
-                                        controller:
-                                            _hoursWorkedControllers[employeeId],
-                                        decoration: const InputDecoration(
-                                          labelText: 'Часы',
-                                          hintText: '0',
-                                          border: OutlineInputBorder(),
-                                          contentPadding: EdgeInsets.symmetric(
-                                              vertical: 4.0, horizontal: 8.0),
+                                      child: _isTimeRangeMode[employeeId]!
+                                          ? Row(
+                                              children: [
+                                                Expanded(
+                                                  child: TextField(
+                                                    controller:
+                                                        _startTimeControllers[
+                                                            employeeId],
+                                                    decoration:
+                                                        const InputDecoration(
+                                                      labelText: 'Часы',
+                                                      hintText: '09:00',
+                                                      labelStyle: TextStyle(
+                                                          fontFamily:
+                                                              'CeraPro'),
+                                                      border:
+                                                          OutlineInputBorder(),
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                const Text('до'),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: TextField(
+                                                    controller:
+                                                        _endTimeControllers[
+                                                            employeeId],
+                                                    decoration:
+                                                        const InputDecoration(
+                                                      labelText: 'Часы',
+                                                      hintText: '17:00',
+                                                      labelStyle: TextStyle(
+                                                          fontFamily:
+                                                              'CeraPro'),
+                                                      border:
+                                                          OutlineInputBorder(),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            )
+                                          : TextField(
+                                              controller:
+                                                  _hoursWorkedControllers[
+                                                      employeeId],
+                                              decoration: const InputDecoration(
+                                                labelText: 'Часы',
+                                                hintText: '0',
+                                                labelStyle: TextStyle(
+                                                    fontFamily: 'CeraPro'),
+                                                border: OutlineInputBorder(),
+                                              ),
+                                              keyboardType:
+                                                  TextInputType.number,
+                                            ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8.0),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: ElevatedButton(
+                                        onPressed: !_absenceStatus[employeeId]!
+                                            ? () => _toggleAbsence(employeeId)
+                                            : null,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.red,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(30.0),
+                                          ),
                                         ),
-                                        keyboardType: TextInputType.number,
+                                        child: const Text('Отсутствие'),
                                       ),
                                     ),
+                                    const SizedBox(width: 8),
                                     Expanded(
-                                      child: IconButton(
-                                        icon: FaIcon(
-                                          FontAwesomeIcons.userSlash,
-                                          color:
-                                              _absenceStatus[employeeId] == true
-                                                  ? Colors.red
-                                                  : Colors.black,
+                                      child: ElevatedButton(
+                                        onPressed:
+                                            _isSaveButtonEnabled[employeeId]!
+                                                ? () =>
+                                                    _saveAttendance(employeeId)
+                                                : null,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color.fromARGB(
+                                              255, 22, 79, 148),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(30.0),
+                                          ),
                                         ),
-                                        onPressed: () =>
-                                            _toggleAbsence(employeeId),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      flex: 1,
-                                      child: IconButton(
-                                        icon: const FaIcon(
-                                          FontAwesomeIcons.solidFloppyDisk,
-                                          color:
-                                              Color.fromARGB(255, 22, 79, 148),
-                                        ),
-                                        onPressed: () {
-                                          final hoursWorkedText =
-                                              _hoursWorkedControllers[
-                                                          employeeId]
-                                                      ?.text ??
-                                                  '';
-                                          final hoursWorked =
-                                              int.tryParse(hoursWorkedText) ??
-                                                  0;
-                                          _saveAttendance(
-                                              employeeId, hoursWorked);
-                                        },
+                                        child: const Text('Сохранить'),
                                       ),
                                     ),
                                   ],
@@ -290,7 +394,7 @@ class AttendanceScreenState extends State<AttendanceScreen> {
       context: context,
       initialDate: _selectedDate ?? DateTime.now(),
       firstDate: DateTime(2000),
-      lastDate: DateTime(2025),
+      lastDate: DateTime(2025, 12, 31),
       builder: (context, child) {
         return Theme(
           data: ThemeData.light().copyWith(

@@ -34,133 +34,213 @@ class AuthScreenState extends ConsumerState<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    const themeColor = Color(0xFF164F94);
+
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const StartScreen()),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/background.jpg',
+              fit: BoxFit.cover,
+            ),
           ),
-        ),
-        centerTitle: true,
-        title: const Text(
-          'Вход',
-          style: TextStyle(
-            fontFamily: 'CeraPro',
-            fontWeight: FontWeight.bold,
-            fontSize: 26,
+          Positioned.fill(
+            child: Container(color: Colors.black.withOpacity(0.5)),
           ),
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: ListView(
-          children: [
-            const Text(
-              'ВВЕДИТЕ ВАШ АДРЕС ЭЛЕКТРОННОЙ ПОЧТЫ',
-              style: TextStyle(
-                  fontFamily: 'CeraPro',
-                  fontSize: 16,
-                  fontWeight: FontWeight.normal),
-              textAlign: TextAlign.center,
-            ),
-            TextField(
-              controller: loginController,
-              decoration: const InputDecoration(
-                hintText: 'Логин',
-                hintStyle: TextStyle(
-                  fontFamily: 'CeraPro',
-                  fontSize: 18,
-                ),
-                focusedBorder: UnderlineInputBorder(
-                  borderSide:
-                      BorderSide(color: Color.fromARGB(255, 22, 79, 148)),
-                ),
-              ),
-              onChanged: (value) {},
-              cursorColor: const Color.fromARGB(255, 22, 79, 148),
-            ),
-            TextFormField(
-              controller: passwordController,
-              obscureText: !passwordVisible,
-              decoration: InputDecoration(
-                  hintText: 'Пароль',
-                  hintStyle: const TextStyle(
-                    fontFamily: 'CeraPro',
-                    fontSize: 18,
-                  ),
-                  focusedBorder: const UnderlineInputBorder(
-                    borderSide:
-                        BorderSide(color: Color.fromARGB(255, 22, 79, 148)),
-                  ),
-                  suffixIcon: IconButton(
-                      onPressed: () =>
-                          setState(() => passwordVisible = !passwordVisible),
-                      icon: Icon(
-                        passwordVisible
-                            ? Icons.visibility
-                            : Icons.visibility_off,
-                        color: const Color.fromARGB(255, 22, 79, 148),
-                      ))),
-              onChanged: (value) {},
-              cursorColor: const Color.fromARGB(255, 22, 79, 148),
-            ),
-            TextField(
-              controller: companyIdController,
-              decoration: const InputDecoration(
-                hintText: 'Компания',
-                hintStyle: TextStyle(
-                  fontFamily: 'CeraPro',
-                  fontSize: 18,
-                ),
-                focusedBorder: UnderlineInputBorder(
-                  borderSide:
-                      BorderSide(color: Color.fromARGB(255, 22, 79, 148)),
-                ),
-              ),
-              onChanged: (value) {},
-              cursorColor: const Color.fromARGB(255, 22, 79, 148),
-            ),
-            const SizedBox(height: 40),
-            ElevatedButton(
-              onPressed: () async {
-                final success =
-                    await ref.read(authManagerProvider).authenticate(
-                          loginController.text,
-                          passwordController.text,
-                          companyIdController.text,
-                          ref,
-                        );
-                if (success) {
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(
-                      builder: (context) => const MyApp(isAuthenticated: true),
+          SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                  child: Text(
+                    'Добро пожаловать!',
+                    style: TextStyle(
+                      fontFamily: 'CeraPro',
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Ошибка аутентификации')),
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color.fromARGB(255, 22, 79, 148),
-                  minimumSize: const Size(336, 40),
-                  padding: const EdgeInsets.all(15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  )),
-              child: const Text(
-                'Вход',
-                style: TextStyle(
-                    fontFamily: 'CeraPro',
-                    fontSize: 18,
-                    color: Color.fromARGB(255, 245, 245, 245)),
-              ),
+                  ),
+                ),
+                const Spacer(),
+                ClipPath(
+                  clipper: OneSideCurveClipper(),
+                  child: Container(
+                    color: Colors.white,
+                    padding: const EdgeInsets.fromLTRB(24, 36, 24, 48),
+                    width: double.infinity,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Center(
+                          child: Text(
+                            'Вход в систему',
+                            style: TextStyle(
+                              fontFamily: 'CeraPro',
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        _buildInputField(
+                          controller: loginController,
+                          label: 'Логин',
+                          icon: Icons.person_outline,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildInputField(
+                          controller: passwordController,
+                          label: 'Пароль',
+                          icon: Icons.lock_outline,
+                          obscure: !passwordVisible,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              passwordVisible
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                              color: themeColor,
+                            ),
+                            onPressed: () => setState(
+                                () => passwordVisible = !passwordVisible),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildInputField(
+                          controller: companyIdController,
+                          label: 'Компания',
+                          icon: Icons.business_outlined,
+                        ),
+                        const SizedBox(height: 30),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              final success = await ref
+                                  .read(authManagerProvider)
+                                  .authenticate(
+                                    loginController.text,
+                                    passwordController.text,
+                                    companyIdController.text,
+                                    ref,
+                                  );
+                              if (success) {
+                                Navigator.of(context).pushReplacement(
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const MyApp(isAuthenticated: true),
+                                  ),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    backgroundColor:
+                                        Colors.red.shade600.withOpacity(0.95),
+                                    behavior: SnackBarBehavior.floating,
+                                    elevation: 6,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    content: Row(
+                                      children: const [
+                                        Icon(Icons.error_outline,
+                                            color: Colors.white),
+                                        SizedBox(width: 12),
+                                        Expanded(
+                                          child: Text(
+                                            'Ошибка аутентификации',
+                                            style: TextStyle(
+                                              fontFamily: 'CeraPro',
+                                              fontSize: 16,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: themeColor,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'Войти',
+                              style: TextStyle(
+                                fontFamily: 'CeraPro',
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInputField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool obscure = false,
+    Widget? suffixIcon,
+  }) {
+    return TextField(
+      controller: controller,
+      obscureText: obscure,
+      cursorColor: const Color(0xFF164F94),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(
+          fontFamily: 'CeraPro',
+          fontSize: 16,
+          color: Colors.black87,
+        ),
+        prefixIcon: Icon(icon, color: const Color(0xFF164F94)),
+        suffixIcon: suffixIcon,
+        filled: true,
+        fillColor: const Color(0xFFE6ECF5),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
         ),
       ),
     );
   }
+}
+
+class OneSideCurveClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    path.lineTo(0, 0);
+    path.lineTo(size.width - 80, 0);
+    path.quadraticBezierTo(size.width, 0, size.width, 80);
+    path.lineTo(size.width, size.height);
+    path.lineTo(0, size.height);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }

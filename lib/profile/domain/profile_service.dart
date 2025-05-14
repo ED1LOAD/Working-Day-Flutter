@@ -18,8 +18,7 @@ class ProfileService {
       print('Error: Authorization token is missing');
       return null;
     }
-    var url =
-        Uri.parse('https://working-day.online:8080/v1/profile/upload-photo');
+    var url = Uri.parse('https://working-day.su:8080/v1/profile/upload-photo');
     var headers = {'Authorization': 'Bearer $token'};
     var response = await http.post(url, headers: headers);
     if (response.statusCode == 200) {
@@ -57,6 +56,30 @@ class ProfileService {
     } else {
       print('No image selected');
       return null;
+    }
+  }
+
+  Future<bool> addInventoryItem(
+      String name, String description, String employeeId) async {
+    final url = Uri.parse('https://working-day.su:8080/v1/inventory/add');
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${await UserPreferences.getToken()}',
+    };
+    final body = jsonEncode({
+      'item': {
+        'name': name,
+        'description': description,
+      },
+      'employee_id': employeeId,
+    });
+
+    try {
+      final response = await http.post(url, headers: headers, body: body);
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Ошибка при добавлении инвентаря: $e');
+      return false;
     }
   }
 }

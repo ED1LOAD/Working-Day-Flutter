@@ -11,7 +11,7 @@ class SearchService {
     }
 
     final response = await http.post(
-      Uri.parse('https://working-day.online:8080/v1/search/full'),
+      Uri.parse('https://working-day.su:8080/v1/search/full'),
       headers: <String, String>{
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -39,7 +39,7 @@ class SearchService {
     }
 
     final response = await http.post(
-      Uri.parse('https://working-day.online:8080/v1/search/suggest'),
+      Uri.parse('https://working-day.su:8080/v1/search/suggest'),
       headers: <String, String>{
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -57,6 +57,25 @@ class SearchService {
       return responseData.map((userJson) => User.fromJson(userJson)).toList();
     } else {
       throw Exception('Server error: ${response.statusCode}');
+    }
+  }
+
+  Future<List<User>> fetchAllUsers() async {
+    final token = await UserPreferences.getToken();
+    final response = await http.get(
+      Uri.parse('https://working-day.su:8080/v1/employees'),
+      headers: {
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final decoded = utf8.decode(response.bodyBytes);
+      final data = jsonDecode(decoded);
+      final List<dynamic> employees = data['employees'];
+      return employees.map((json) => User.fromJson(json)).toList();
+    } else {
+      throw Exception('Не удалось загрузить сотрудников');
     }
   }
 }

@@ -1,0 +1,2 @@
+/Users/molva/Code/projects/Working-Day-Flutter/android/app/.cxx/Debug/3w644r52/armeabi-v7a/CMakeFiles/edit_cache.dir
+/Users/molva/Code/projects/Working-Day-Flutter/android/app/.cxx/Debug/3w644r52/armeabi-v7a/CMakeFiles/rebuild_cache.dir

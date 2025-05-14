@@ -6,6 +6,7 @@ class UserProfileUpdate {
   String telegram_id;
   // ignore: non_constant_identifier_names
   String vk_id;
+  String jobPosition;
 
   UserProfileUpdate({
     required this.email,
@@ -15,5 +16,6 @@ class UserProfileUpdate {
     required this.telegram_id,
     // ignore: non_constant_identifier_names
     required this.vk_id,
+    required this.jobPosition,
   });
 }
